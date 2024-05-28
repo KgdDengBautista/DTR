@@ -1,3 +1,4 @@
+Updates to keyboard shortcuts … On Thursday, August 1, 2024, Drive keyboard shortcuts will be updated to give you first-letters navigation.Learn more
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -165,21 +166,10 @@
 
     <div id="totalRenderedHours" class="total-rendered-hours"></div>
 
-    <!-- Google AdSense Ad Unit -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9718385369576542" crossorigin="anonymous"></script>
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="ca-pub-9718385369576542"
-         data-ad-slot="1234567890"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>
-         (adsbygoogle = window.adsbygoogle || []).push({});
-    </script>
-
     <div id="printArea" style="display: none;">
         <h2>Duty Hours Report</h2>
-        <div>
+        <
+<div>
             <p>Name: <span id="printName"></span></p>
             <p>Office Assigned: <span id="printOfficeAssigned"></span></p>
             <table>
@@ -196,7 +186,6 @@
             </table>
             <div id="printTotalRenderedHours"></div>
         </div>
-    </div>
 
     <script>
         // Function to prompt user when changing office assignment
@@ -225,96 +214,182 @@
             var hourOut = document.getElementById('hourOut').value;
             var minuteOut = document.getElementById('minuteOut').value;
 
-            if (hourIn === "" || minuteIn === "" || hourOut === "" || minuteOut === "") {
-                alert('Please select both Time In and Time Out.');
+            // Format the time
+            var timeInFormatted = hourIn + ':' + minuteIn;
+            var timeOutFormatted = hourOut + ':' + minuteOut;
+
+            // Parse time strings to Date objects
+            var timeIn = new Date('1970-01-01T' + timeInFormatted + ':00');
+            var timeOut = new Date('1970-01-01T' + timeOutFormatted + ':00');
+
+            // Validate "Others" office assignments
+            if (officeAssigned === 'Others') {
+                // If time in is between 6:00 and 12:00, restrict time out between 14:00 and 20:00
+                if (timeIn.getHours() >= 6 && timeIn.getHours() < 12 && (timeIn.getHours() !== 12 || timeIn.getMinutes() <= 00)) {
+                    if (['14', '15', '16', '17', '18', '19', '20'].includes(hourOut)) {
+                        alert('Students in Others office cannot render duty during lunchbreak if they started duty between 6:00 and 11:00.');
+                        return;
+                    }
+                }
+
+                // Restrict duty hours during lunch break
+                if ((hourOut === '12' && minuteOut > '00' && minuteOut < '60') || (hourOut === '13' && minuteOut <= '00')) {
+                    alert('Students in Others office cannot render during lunchbreak. They may start duty again at or after 1:00 PM.');
+                    return;
+                }
+            }
+
+            // Calculate duration in milliseconds
+            var duration = timeOut - timeIn;
+
+            // Convert milliseconds to hours
+            var hours = duration / (1000 * 60 * 60);
+
+            // Check if hours is less than 1.5
+            if (hours < 1.5) {
+                alert('A duty session cannot be less than 1.5 hours.');
                 return;
             }
 
-            // Format time for display
-            var timeIn = hourIn + ':' + minuteIn;
-            var timeOut = hourOut + ':' + minuteOut;
-
-            // Calculate total rendered hours
-            var timeInDate = new Date(`1970-01-01T${timeIn}:00`);
-            var timeOutDate = new Date(`1970-01-01T${timeOut}:00`);
-            var renderedHours = (timeOutDate - timeInDate) / (1000 * 60 * 60);
-
-            if (renderedHours < 0) {
-                renderedHours += 24; // Handle case where time out is past midnight
-            }
-
-            // Create new row with duty information
+            // Create a new row
             var newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td class="no-print"><button class="deleteButton">Delete</button></td>
-                <td>${date}</td>
-                <td>${timeIn}</td>
-                <td>${timeOut}</td>
-                <td>${renderedHours.toFixed(2)}</td>
-            `;
-
+            newRow.innerHTML = `<td class="no-print"><button class="deleteRow no-print">Delete</button></td><td>${date}</td><td>${timeInFormatted}</td><td>${timeOutFormatted}</td><td>${hours.toFixed(2)}</td>`;
+            
+            // Add the new row to the table
             document.querySelector('#infoTable tbody').appendChild(newRow);
 
-            // Clear form fields after adding entry
-            document.getElementById('date').value = '';
-            document.getElementById('hourIn').selectedIndex = 0;
-            document.getElementById('minuteIn').selectedIndex = 0;
-            document.getElementById('hourOut').selectedIndex = 0;
-            document.getElementById('minuteOut').selectedIndex = 0;
-
-            // Add delete button functionality
-            var deleteButtons = document.querySelectorAll('.deleteButton');
-            deleteButtons[deleteButtons.length - 1].addEventListener('click', function() {
-                this.closest('tr').remove();
-            });
+            // Save to local storage
+            saveToLocalStorage();
         });
+
+        // Function to save duty data to local storage
+        function saveToLocalStorage() {
+            var rows = document.querySelectorAll('#infoTable tbody tr');
+            var data = [];
+            rows.forEach(function(row) {
+                var cells = row.querySelectorAll('td');
+                var rowData = {
+                    date: cells[1].textContent,
+                    timeIn: cells[2].textContent,
+                    timeOut: cells[3].textContent,
+                    hours: cells[4].textContent
+                };
+                data.push(rowData);
+            });
+            localStorage.setItem('dutyData', JSON.stringify(data));
+
+            // Save Office Assigned to local storage
+            var officeAssigned = document.getElementById('officeAssigned').value;
+            localStorage.setItem('officeAssigned', officeAssigned);
+        }
+
+        // Function to load duty data from local storage
+        function loadFromLocalStorage() {
+            var data = JSON.parse(localStorage.getItem('dutyData'));
+            if (data) {
+                data.forEach(function(rowData) {
+                    var newRow = document.createElement('tr');
+                    newRow.innerHTML = `<td class="no-print"><button class="deleteRow no-print">Delete</button></td><td>${rowData.date}</td><td>${rowData.timeIn}</td><td>${rowData.timeOut}</td><td>${rowData.hours}</td>`;
+                    document.querySelector('#infoTable tbody').appendChild(newRow);
+                });
+            }
+
+            // Load Office Assigned from local storage
+            var officeAssigned = localStorage.getItem('officeAssigned');
+            if (officeAssigned) {
+                document.getElementById('officeAssigned').value = officeAssigned;
+                document.getElementById('officeAssigned').setAttribute('disabled', 'disabled');
+            }
+        }
+
+        // Load duty data from local storage when the page loads
+        window.addEventListener('load', function() {
+            loadFromLocalStorage();
+        });
+
+        // Function to prompt user if they are sure they are finished encoding
+        function confirmFinishEncoding() {
+            if (confirm('Are you sure you are finished encoding?')) {
+                // Deactivate all delete buttons
+                var deleteButtons = document.querySelectorAll('.deleteRow');
+                deleteButtons.forEach(function(button) {
+                    button.disabled = true;
+                });
+            }
+        }
 
         document.getElementById('calculateTotal').addEventListener('click', function() {
+            // Ask the user if they are sure they are finished encoding
+            confirmFinishEncoding();
+
+            // Get all the cells with rendered hours
+            var renderedHoursCells = document.querySelectorAll('#infoTable tbody tr td:nth-child(5)');
+            
+            // Calculate the total rendered hours
             var totalHours = 0;
-            var rows = document.querySelectorAll('#infoTable tbody tr');
-            rows.forEach(function(row) {
-                totalHours += parseFloat(row.cells[4].innerText);
-                row.querySelector('.deleteButton').remove();
+            renderedHoursCells.forEach(function(cell) {
+                totalHours += parseFloat(cell.textContent);
             });
-            document.getElementById('totalRenderedHours').innerText = 'Total Rendered Hours: ' + totalHours.toFixed(2);
-            this.disabled = true;
+
+            // Display the total rendered hours
+            document.getElementById('totalRenderedHours').innerHTML = "<p>Total Rendered Hours: " + totalHours.toFixed(2) + "</p>";
         });
 
+        document.querySelector('#infoTable').addEventListener('click', function(event) {
+            if (event.target.classList.contains('deleteRow')) {
+                if (confirm('Are you sure you want to delete this entry?')) {
+                    var row = event.target.closest('tr');
+                    row.remove();
+                    // Update local storage after removing row
+                    saveToLocalStorage();
+                }
+            }
+        });
+
+        // Handle printing
         document.getElementById('printButton').addEventListener('click', function() {
-            var name = document.getElementById('name').value;
-            var officeAssigned = document.getElementById('officeAssigned').value;
+            if (confirm('Are you sure you want to print?')) {
+                // Get name and office assigned from the form
+                var name = document.getElementById('name').value;
+                var officeAssigned = document.getElementById('officeAssigned').value;
 
-            document.getElementById('printName').innerText = name;
-            document.getElementById('printOfficeAssigned').innerText = officeAssigned;
+                // Copy the name and office assigned to the print area
+                document.getElementById('printName').textContent = name;
+                document.getElementById('printOfficeAssigned').textContent = officeAssigned;
 
-            var tableBody = document.getElementById('printTableBody');
-            tableBody.innerHTML = '';
+                // Copy the information to the print area
+                var printTableBody = document.getElementById('printTableBody');
+                printTableBody.innerHTML = document.querySelector('#infoTable tbody').innerHTML;
 
-            var rows = document.querySelectorAll('#infoTable tbody tr');
-            rows.forEach(function(row) {
-                var newRow = document.createElement('tr');
-                newRow.innerHTML = `
-                    <td>${row.cells[1].innerText}</td>
-                    <td>${row.cells[2].innerText}</td>
-                    <td>${row.cells[3].innerText}</td>
-                    <td>${row.cells[4].innerText}</td>
-                `;
-                tableBody.appendChild(newRow);
-            });
+                // Copy the total rendered hours to the print area
+                document.getElementById('printTotalRenderedHours').innerHTML = document.getElementById('totalRenderedHours').innerHTML;
 
-            var totalHours = document.getElementById('totalRenderedHours').innerText;
-            document.getElementById('printTotalRenderedHours').innerText = totalHours;
+                // Show the print area
+                document.getElementById('printArea').style.display = 'block';
 
-            document.getElementById('printArea').style.display = 'block';
-            window.print();
-            document.getElementById('printArea').style.display = 'none';
+                // Trigger the print
+                window.print();
+
+                // Hide the print area after printing
+                document.getElementById('printArea').style.display = 'none';
+            }
         });
 
+        // Clear all duty data and local storage
         document.getElementById('clearButton').addEventListener('click', function() {
-            if (confirm('Are you sure you want to clear all entries?')) {
+            if (confirm('Are you sure you want to clear all duty data?')) {
+                // Clear the table
                 document.querySelector('#infoTable tbody').innerHTML = '';
-                document.getElementById('totalRenderedHours').innerText = '';
-                document.getElementById('calculateTotal').disabled = false;
+
+                // Clear the total rendered hours
+                document.getElementById('totalRenderedHours').innerHTML = '';
+
+                // Clear local storage
+                localStorage.removeItem('dutyData');
+                localStorage.removeItem('officeAssigned');
+
+                // Enable Office Assigned field
+                document.getElementById('officeAssigned').removeAttribute('disabled');
             }
         });
     </script>
